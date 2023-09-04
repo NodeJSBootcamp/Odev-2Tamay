@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 import { randomUUID } from "crypto";
 
-//mongoose kullanılaeak yeni bir şema oluşturulması.
 const Schema = mongoose.Schema;
 
-//şema tanımlaması buradan başlıyor.
+
 const TweetSchema = new Schema({
   tweetId: {
     type: "UUID",
@@ -31,7 +30,7 @@ const TweetSchema = new Schema({
     default: false,
   },
 
-  //bu alanda likes dizininde, userId ve usrname alanlatı içeren neseneler bulanacak.
+
   likedBy: [
     {
       userId: {
@@ -63,5 +62,5 @@ const TweetSchema = new Schema({
   ],
 });
 
-//Tweets adında mongoose modeli oluşturuluyor.
+
 export const TweetModel = mongoose.model("Tweets", TweetSchema);

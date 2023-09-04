@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import UserModel from "../data/user.data";
 import { generateToken } from "../utils/jwt.utils";
+import { emailSend } from "../Email/email.sender";
+import { otpGenerate } from "../Email/otp.generator";
+import OtpModel from "../data/otp.data";
 
 export const register = (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -10,7 +13,21 @@ export const register = (req: Request, res: Response, next: NextFunction) => {
     })
       .then((result) => {
         if (result) {
-          res.sendStatus(200);
+          const otpData = otpGenerate();
+          const emailText =
+            req.body.username +
+            " has succesfully registered. OTP code is " +
+            otpData.otp;
+          OtpModel.create({
+            username: result.username,
+            otp: otpData.otp,
+            expritaionTime: otpData.expirationTime,
+          }).then((resultForOtp) => {
+            if (resultForOtp) {
+              //@TODO Please put your email here or email address u wanna send email
+              emailSend("tamaayerdogdu@gmail.com", "User Auth", emailText, res);
+            }
+          });
         }
       })
       .catch((exception) => {
@@ -41,7 +58,11 @@ export const login = (req: Request, res: Response, next: NextFunction) => {
       }
     })
     .then((jwtToken) => {
-      if (jwtToken) res.json({ token: jwtToken });
+      //header
+      res
+        .cookie("token", jwtToken ?? "")
+        .setHeader("token", jwtToken ?? "")
+        .sendStatus(200);
     })
     .catch((exception) => {
       console.error(exception);
@@ -70,35 +91,63 @@ export const deleteUser = (req: Request, res: Response, next: NextFunction) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    //HTTP isteğinden gelen req  ve body özelliğinden gelen verileri ayrıştırarak değişkenlere atama.
     const { username, newPassword, isAdmin } = req.body;
     const updateFields: any = {};
 
-    //yeni şifre tanımlıysa güncelleme yapılabilir.
     updateFields.password = newPassword ? newPassword : undefined;
 
-    //isAdmin tanımlıysa ve undefined değilse, güncellenebilir.
     updateFields.isAdmin = isAdmin !== undefined ? isAdmin : undefined;
 
-    //finOneAndUpdate yöntemi, kullanıcı adına ve silinmemiş olma durumuna göre güncelleme yapar.
-    //Yeni güncellenmiş kullanıcı bilgilerini döndürür.
     const updatedUser = await UserModel.findOneAndUpdate(
-      //kullanıcı adı ve silinmemiş durumu sorgular.
       { username, isDeleted: false },
-      //mongoose içerisinde güncellencek alanı belirler.
+
       { $set: updateFields },
-      //yeni güncellenmiş kullanıcı döner.
+
       { new: true }
     );
-    //Güncellenmiş bilgi JSON olarak döner eğer güncellenmemişse boş döner.
+
     if (updatedUser) {
       res.sendStatus(200);
     } else {
       res.sendStatus(404);
     }
   } catch (error) {
-    //genel hata sonucu hatayı yazdırır ve boş JSON döndürür.
     console.error(error);
     res.status(500).json({});
+  }
+};
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const pageIndex = parseInt(req.query.pageIndex as string);
+    const pageSize = parseInt(req.query.pageSize as string);
+
+    if (isNaN(pageIndex) || isNaN(pageSize)) {
+      return res
+        .status(400)
+        .json({ error: "Geçersiz pageIndex veya pageSize" });
+    }
+
+    const users = await UserModel.find()
+      .skip(pageIndex * pageSize)
+      .limit(pageSize);
+
+    if (!users) {
+      return res.status(404).json({ error: "Kullanıcılar bulunamadı." });
+    }
+
+    const nextPage =
+      "http://localhost:8000/user/getUsers?pageIndex=" +
+      (pageIndex + 1) +
+      "&pageSize=" +
+      pageSize;
+
+    res.setHeader("_link", nextPage).json({ data: users });
+  } catch (error) {
+    console.error("Hata oluştu:", error);
+    res.sendStatus(500);
   }
 };

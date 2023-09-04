@@ -7,4 +7,5 @@ userRouter.post("/register", userController.register);
 userRouter.post("/login", userController.login);
 userRouter.post("/delete", [authtenticateForAdmin], userController.deleteUser);
 userRouter.post("/update", [authtenticateForAdmin], userController.updateUser);
+
 export default userRouter;

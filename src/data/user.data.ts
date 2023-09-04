@@ -28,6 +28,10 @@ const UserSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  email:{
+    type:String,
+    required:true
+}
 });
 const UserModel = mongoose.model("User", UserSchema);
 
